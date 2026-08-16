@@ -2,7 +2,7 @@ name: demobooru
 
 services:
   database:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-demobooru}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-demobooru_demo}
@@ -10,7 +10,9 @@ services:
     ports:
       - "${DB_HOST_PORT:-5433}:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # Postgres 18+ stores data in versioned subdirectories under
+      # /var/lib/postgresql; the volume must mount at that level, not .../data.
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-demobooru} -d ${POSTGRES_DB:-demobooru}"]
       interval: 2s

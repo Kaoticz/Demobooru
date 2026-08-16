@@ -14,8 +14,8 @@ images through the app.
 
 | Layer    | Technology                                      |
 | -------- | ----------------------------------------------- |
-| Backend  | Python 3.12, FastAPI, SQLAlchemy 2, Alembic     |
-| Database | PostgreSQL 17 (Docker volume for persistence)   |
+| Backend  | Python 3.14, FastAPI, SQLAlchemy 2, Alembic     |
+| Database | PostgreSQL 18 (Docker volume for persistence)   |
 | Frontend | React 19 + TypeScript, Vite dev server          |
 | Tests    | pytest (backend), Vitest + RTL (frontend)       |
 | Runtime  | Docker Compose, hot reloading on both app tiers |
