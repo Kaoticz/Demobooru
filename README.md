@@ -144,6 +144,11 @@ them.
   nothing, that tag is deleted too. The tag panel always reflects tags
   actually in use.
 - **Rejected uploads** leave nothing behind: no file on disk, no database row.
+- **Pinned dependencies**: the backend's dependencies live in
+  `backend/pyproject.toml` as a complete, fully pinned transitive closure
+  (not just direct requirements) for reproducible builds. To upgrade, edit
+  the pins there and rebuild; regenerate the list with
+  `docker compose exec backend pip freeze`.
 
 ## Repository layout
 
@@ -167,6 +172,7 @@ time:
 │   │   └── database.py       engine, session factory, get_db dependency
 │   ├── alembic/              migrations (versions/ holds the revisions)
 │   ├── tests/                pytest suite (tests through the HTTP layer)
+│   ├── pyproject.toml        fully pinned dependencies (installed by the Dockerfile)
 │   └── entrypoint.sh         wait for DB → apply migrations → run server
 ├── frontend/                 React 19 + TypeScript / Vite
 │   └── src/
