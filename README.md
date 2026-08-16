@@ -20,6 +20,15 @@ images through the app.
 | Tests    | pytest (backend), Vitest + RTL (frontend)       |
 | Runtime  | Docker Compose, hot reloading on both app tiers |
 
+## Tests
+
+Backend (pytest, runs inside the backend container against an isolated
+`demobooru_test` database — your board's data is never touched):
+
+```sh
+docker compose exec backend pytest
+```
+
 No authentication anywhere — the board is fully anonymous by design.
 
 ## Prerequisites
@@ -102,6 +111,13 @@ Uploaded images survive ordinary restarts (`docker compose restart` /
 them.
 
 ## Design decisions worth knowing
+
+- **Tag format**: tags are lowercase, space-separated when typed, and may
+  contain `a-z`, `0-9`, `_` (for multi-word tags, booru-style) and `-`, up to
+  64 characters. The server normalizes input (trim, lowercase, split on
+  whitespace, de-duplicate) and rejects anything else with a clear message.
+- **Search** is exact-match implicit-AND: `cat dog` means "has cat AND dog".
+  No operators, negation, partial matching, or suggestions.
 
 - **Stored files**: uploads are kept in a Docker volume under non-guessable
   generated names (`<random>.<ext>`); the user's original filename is

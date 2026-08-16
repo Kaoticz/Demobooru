@@ -5,6 +5,7 @@ from sqlalchemy import text
 
 from app.config import get_settings
 from app.database import engine
+from app.routes import router
 
 settings = get_settings()
 
@@ -16,6 +17,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(router)
 
 
 @app.get("/api/health")
@@ -30,5 +33,3 @@ def health() -> JSONResponse:
             content={"status": "error", "database": f"unreachable: {exc}"},
         )
     return JSONResponse(content={"status": "ok", "database": "connected"})
-
-# hot-reload probe: edited at 11:35:12
