@@ -144,3 +144,100 @@ them.
   nothing, that tag is deleted too. The tag panel always reflects tags
   actually in use.
 - **Rejected uploads** leave nothing behind: no file on disk, no database row.
+
+## Repository layout
+
+Enough orientation for a coding agent (or a human) seeing this for the first
+time:
+
+```
+.
+├── docker-compose.yml        three services: database, backend, frontend
+├── .env.example              every environment variable, with defaults
+├── backend/                  Python / FastAPI
+│   ├── app/
+│   │   ├── main.py           app wiring: CORS, router, /api/health
+│   │   ├── routes.py         all REST endpoints (upload/list/search/detail/
+│   │   │                     delete/tags/file serving)
+│   │   ├── models.py         SQLAlchemy models: images, tags, image_tags
+│   │   ├── schemas.py        Pydantic response models
+│   │   ├── tags.py           tag normalization + concurrency-safe resolution
+│   │   ├── storage.py        upload-directory handling, generated filenames
+│   │   ├── config.py         environment-driven settings
+│   │   └── database.py       engine, session factory, get_db dependency
+│   ├── alembic/              migrations (versions/ holds the revisions)
+│   ├── tests/                pytest suite (tests through the HTTP layer)
+│   └── entrypoint.sh         wait for DB → apply migrations → run server
+├── frontend/                 React 19 + TypeScript / Vite
+│   └── src/
+│       ├── api/              typed API client (client.ts) and wire types
+│       ├── components/       grid, pagination, upload form, search bar,
+│       │                     tag panel, detail view, shared states
+│       ├── hooks/            useApi (loading/error/retry data fetching)
+│       └── __tests__/        Vitest + RTL tests (API layer mocked)
+└── docs/tickets/             the three demo tickets (see below)
+```
+
+Behavioral notes worth knowing when changing things:
+
+- The browser talks only to the Vite dev server (`/api/*` proxied), never to
+  the backend origin directly.
+- Uploads are stored in the `uploads` Docker volume under generated hex
+  names; the original filename lives only in the database.
+- Deleting an image also deletes tags that would otherwise be attached to
+  nothing.
+
+## Demo workflow
+
+This repository is the base for demonstrating a coding agent:
+
+1. `docker compose up -d --build` — the board comes up empty (no images are
+   bundled; upload your own through the app, ideally a couple of large phone
+   photos so the Tier 3 complaint feels real).
+2. Pick a ticket from `docs/tickets/` and point the agent at it. The tickets
+   are deliberately underspecified — the design decisions are the demo.
+3. Both app tiers hot-reload, so the agent's edits become visible live
+   without rebuilding anything.
+4. Both test suites run inside the containers with the commands above, so
+   "make the tests pass" is demoable too.
+
+## The demo tickets
+
+The three tickets in [`docs/tickets/`](docs/tickets/) describe real,
+desirable improvements — grid browsing comfort, tag discovery, large-upload
+handling and search exclusions. They are written like normal GitHub issues
+and are **deliberately not implemented**; they exist so the demonstrated
+agent can be pointed at them. Increasing scope from frontend-only (ticket 1)
+to full-stack (ticket 3).
+
+## Troubleshooting
+
+Failures actually hit while building this project:
+
+- **`permission denied ... /var/run/docker.sock`** — your user is not in the
+  `docker` group. Fix: `sudo usermod -aG docker $USER`, then log out and
+  back in (or start a shell with `newgrp docker`).
+- **`port is already allocated` / address in use** — one of the published
+  ports (5433, 8000, 5173) is taken on the host. Copy `.env.example` to
+  `.env` and change `DB_HOST_PORT` / `BACKEND_HOST_PORT` /
+  `FRONTEND_HOST_PORT`. Note PostgreSQL is on 5433 precisely to avoid the
+  usual 5432 collision; if you change it, any host tooling must follow.
+- **Backend container restarts endlessly with migration errors** — check
+  `docker compose logs backend`. The backend refuses to serve against a
+  broken schema by design. A `docker compose down -v` resets everything
+  (destructive: deletes images and database).
+- **Frontend shows "Backend unavailable"** — the backend takes a few seconds
+  to wait for the database and apply migrations on first start; use the
+  Retry button. If it persists, the backend logs have the reason.
+- **File watching feels CPU-hungry** — both watchers poll by default for
+  cross-platform reliability; on Linux you can set
+  `WATCHFILES_FORCE_POLLING=false` and `VITE_USE_POLLING=false` in `.env`.
+- **Two checkouts cannot run at the same time** — the Compose project name
+  is fixed (`name: demobooru` in `docker-compose.yml`), so a second clone of
+  this repository on the same machine would *share* containers, volumes, and
+  ports with the first instead of running alongside it. One board per
+  machine; `docker compose down` from the first checkout before starting a
+  second.
+- **Never run `npm`/`pip` on the host** — everything runs inside the
+  containers; the frontend's `node_modules` volume is intentionally isolated
+  from anything on your host.
