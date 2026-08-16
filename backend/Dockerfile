@@ -6,8 +6,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+# Install the pinned dependencies only, not the project itself: the app runs
+# in place from /app (compose bind-mounts the source over it), so there is no
+# package to install. pip cannot consume [project.dependencies] directly, so
+# extract them with stdlib tomllib and install from the generated list. The
+# layer stays cached until pyproject.toml itself changes.
+COPY pyproject.toml ./
+RUN python -c 'import tomllib; deps = tomllib.load(open("pyproject.toml", "rb"))["project"]["dependencies"]; print("\n".join(deps))' > /tmp/deps.txt \
+    && pip install --no-cache-dir -r /tmp/deps.txt
 
 COPY . .
 
