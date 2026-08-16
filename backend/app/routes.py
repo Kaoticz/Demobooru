@@ -18,7 +18,7 @@ from fastapi import (
     UploadFile,
 )
 from fastapi.responses import FileResponse
-from sqlalchemy import exists, func, select
+from sqlalchemy import delete, exists, func, select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -75,15 +75,13 @@ def upload_image(
 
     if file.content_type not in ALLOWED_MIME_TYPES:
         raise _bad_request(
-            f"unsupported file type '{file.content_type or 'unknown'}': "
-            "allowed types are JPEG, PNG, GIF and WebP"
+            f"unsupported file type '{file.content_type or 'unknown'}': allowed types are JPEG, PNG, GIF and WebP"
         )
 
     max_bytes = _max_upload_bytes()
     if file.size is not None and file.size > max_bytes:
         raise _bad_request(
-            f"file is too large: {file.size} bytes exceeds the "
-            f"{get_settings().max_upload_mb} MB limit"
+            f"file is too large: {file.size} bytes exceeds the {get_settings().max_upload_mb} MB limit"
         )
 
     data = file.file.read()
@@ -91,15 +89,13 @@ def upload_image(
         raise _bad_request("uploaded file is empty")
     if len(data) > max_bytes:
         raise _bad_request(
-            f"file is too large: {len(data)} bytes exceeds the "
-            f"{get_settings().max_upload_mb} MB limit"
+            f"file is too large: {len(data)} bytes exceeds the {get_settings().max_upload_mb} MB limit"
         )
 
     original_filename = file.filename or "upload"
     if len(original_filename) > MAX_ORIGINAL_FILENAME_LENGTH:
         raise _bad_request(
-            f"original filename is too long "
-            f"(max {MAX_ORIGINAL_FILENAME_LENGTH} characters)"
+            f"original filename is too long (max {MAX_ORIGINAL_FILENAME_LENGTH} characters)"
         )
 
     stored_filename = save_file(data, file.content_type)
@@ -181,11 +177,12 @@ def delete_image(image_id: int, db: Session = Depends(get_db)) -> Response:
     # orphan check below runs (the session has autoflush disabled).
     db.flush()
     # Policy: a tag attached to nothing is removed with its last image, so the
-    # tag list always reflects tags actually in use.
-    db.execute(
-        Tag.__table__.delete().where(
-            ~exists(select(1).where(image_tags.c.tag_id == Tag.id))
-        )
+    # tag list always reflects tags actually in use. Session synchronization
+    # is off so this stays the same single raw DELETE it always was.
+    _ = db.execute(
+        delete(Tag)
+        .where(~exists(select(1).where(image_tags.c.tag_id == Tag.id)))
+        .execution_options(synchronize_session=False)
     )
     db.commit()
     delete_file(image.filename)

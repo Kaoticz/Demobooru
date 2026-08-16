@@ -2,7 +2,10 @@
 
 import struct
 import zlib
+from httpx2 import Response
 from pathlib import Path
+
+from fastapi.testclient import TestClient
 
 TEST_UPLOAD_DIR = Path("/tmp/demobooru-test-uploads")
 
@@ -27,8 +30,9 @@ def make_png(
     )
 
 
-def upload(client, tags: str, *, filename: str = "test.png", data: bytes | None = None,
-           content_type: str = "image/png"):
+def upload(client: TestClient, tags: str, *,
+           filename: str = "test.png", data: bytes | None = None,
+           content_type: str = "image/png") -> Response:
     """POST an upload with sensible defaults; returns the response."""
     return client.post(
         "/api/images",

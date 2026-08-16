@@ -10,9 +10,11 @@ WORKDIR /app
 # in place from /app (compose bind-mounts the source over it), so there is no
 # package to install. pip cannot consume [project.dependencies] directly, so
 # extract them with stdlib tomllib and install from the generated list. The
-# layer stays cached until pyproject.toml itself changes.
+# dev profile is installed too, deliberately: tests and type checkers run
+# inside this container (see README). The layer stays cached until
+# pyproject.toml itself changes.
 COPY pyproject.toml ./
-RUN python -c 'import tomllib; deps = tomllib.load(open("pyproject.toml", "rb"))["project"]["dependencies"]; print("\n".join(deps))' > /tmp/deps.txt \
+RUN python -c 'import tomllib; data = tomllib.load(open("pyproject.toml", "rb")); deps = data["project"]["dependencies"] + data["dependency-groups"]["dev"]; print("\n".join(deps))' > /tmp/deps.txt \
     && pip install --no-cache-dir -r /tmp/deps.txt
 
 COPY . .

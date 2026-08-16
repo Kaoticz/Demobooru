@@ -9,6 +9,7 @@ pytest imports conftest before collecting tests.
 
 import os
 import shutil
+from collections.abc import Iterator
 
 TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL",
@@ -36,12 +37,12 @@ def _ensure_test_database_exists() -> None:
             text("SELECT 1 FROM pg_database WHERE datname = 'demobooru_test'")
         ).scalar()
         if not exists:
-            connection.execute(text("CREATE DATABASE demobooru_test"))
+            _ = connection.execute(text("CREATE DATABASE demobooru_test"))
     server_engine.dispose()
 
 
 @pytest.fixture(scope="session", autouse=True)
-def migrated_database():
+def migrated_database() -> Iterator[None]:
     """Bring the test database to the latest migration before any test."""
     _ensure_test_database_exists()
     command.upgrade(Config("/app/alembic.ini"), "head")
@@ -49,12 +50,14 @@ def migrated_database():
 
 
 @pytest.fixture(autouse=True)
-def clean_state(migrated_database):
+def clean_state(
+    migrated_database: None,  # pyright: ignore[reportUnusedParameter] - fixture injection orders this after the session fixture
+) -> Iterator[None]:
     """Every test starts from empty tables and an empty upload directory."""
     from app.database import engine
 
     with engine.begin() as connection:
-        connection.execute(
+        _ = connection.execute(
             text("TRUNCATE TABLE image_tags, images, tags RESTART IDENTITY CASCADE")
         )
     shutil.rmtree(TEST_UPLOAD_DIR, ignore_errors=True)
@@ -62,7 +65,7 @@ def clean_state(migrated_database):
 
 
 @pytest.fixture()
-def client():
+def client() -> Iterator[TestClient]:
     from app.main import app
 
     with TestClient(app) as test_client:

@@ -1,6 +1,6 @@
 """End-to-end API tests: exercised through the HTTP layer, never internals."""
 
-from pathlib import Path
+from fastapi.testclient import TestClient
 
 from app.storage import stored_files
 
@@ -13,7 +13,7 @@ def stored_file_count() -> int:
 
 # ---------------------------------------------------------------- health ----
 
-def test_health(client):
+def test_health(client: TestClient) -> None:
     response = client.get("/api/health")
     assert response.status_code == 200
     body = response.json()
@@ -23,7 +23,7 @@ def test_health(client):
 
 # ---------------------------------------------------------------- upload ----
 
-def test_upload_success_end_to_end(client):
+def test_upload_success_end_to_end(client: TestClient) -> None:
     png = make_png(width=3, height=2, rgb=(10, 20, 30))
     response = upload(client, "cat animal", filename="kitty.png", data=png)
     assert response.status_code == 201, response.text
@@ -49,13 +49,13 @@ def test_upload_success_end_to_end(client):
     assert detail["original_filename"] == "kitty.png"
 
 
-def test_upload_missing_file_rejected(client):
+def test_upload_missing_file_rejected(client: TestClient) -> None:
     response = client.post("/api/images", data={"tags": "cat"})
     assert response.status_code == 422
     assert stored_file_count() == 0
 
 
-def test_upload_non_image_type_rejected(client):
+def test_upload_non_image_type_rejected(client: TestClient) -> None:
     response = upload(client, "cat", filename="notes.txt",
                       data=b"just some text", content_type="text/plain")
     assert response.status_code == 400
@@ -63,7 +63,7 @@ def test_upload_non_image_type_rejected(client):
     assert stored_file_count() == 0
 
 
-def test_upload_disallowed_image_type_rejected(client):
+def test_upload_disallowed_image_type_rejected(client: TestClient) -> None:
     response = upload(client, "cat", filename="pic.bmp",
                       data=b"BM...", content_type="image/bmp")
     assert response.status_code == 400
@@ -71,7 +71,7 @@ def test_upload_disallowed_image_type_rejected(client):
     assert stored_file_count() == 0
 
 
-def test_upload_oversize_rejected(client):
+def test_upload_oversize_rejected(client: TestClient) -> None:
     too_big = make_png() + b"\x00" * (10 * 1024 * 1024 + 1)
     response = upload(client, "cat", data=too_big)
     assert response.status_code == 400
@@ -80,28 +80,28 @@ def test_upload_oversize_rejected(client):
     assert stored_file_count() == 0
 
 
-def test_upload_empty_file_rejected(client):
+def test_upload_empty_file_rejected(client: TestClient) -> None:
     response = upload(client, "cat", data=b"")
     assert response.status_code == 400
     assert "empty" in response.json()["detail"]
     assert stored_file_count() == 0
 
 
-def test_upload_without_tags_rejected(client):
+def test_upload_without_tags_rejected(client: TestClient) -> None:
     response = upload(client, "")
     assert response.status_code == 400
     assert "at least one tag" in response.json()["detail"]
     assert stored_file_count() == 0
 
 
-def test_upload_whitespace_tags_rejected(client):
+def test_upload_whitespace_tags_rejected(client: TestClient) -> None:
     response = upload(client, "   ")
     assert response.status_code == 400
     assert "at least one tag" in response.json()["detail"]
     assert stored_file_count() == 0
 
 
-def test_upload_missing_tags_field_rejected(client):
+def test_upload_missing_tags_field_rejected(client: TestClient) -> None:
     response = client.post(
         "/api/images",
         files={"file": ("x.png", make_png(), "image/png")},
@@ -111,14 +111,14 @@ def test_upload_missing_tags_field_rejected(client):
     assert stored_file_count() == 0
 
 
-def test_upload_invalid_tag_characters_rejected(client):
+def test_upload_invalid_tag_characters_rejected(client: TestClient) -> None:
     response = upload(client, "cat cute!!")
     assert response.status_code == 400
     assert "'cute!!'" in response.json()["detail"]
     assert stored_file_count() == 0
 
 
-def test_upload_original_filename_too_long_rejected(client):
+def test_upload_original_filename_too_long_rejected(client: TestClient) -> None:
     response = upload(client, "cat", filename="n" * 513)
     assert response.status_code == 400
     assert "filename is too long" in response.json()["detail"]
@@ -127,14 +127,14 @@ def test_upload_original_filename_too_long_rejected(client):
 
 # ------------------------------------------------------------------ tags ----
 
-def test_tag_normalization_dedup_and_casing(client):
+def test_tag_normalization_dedup_and_casing(client: TestClient) -> None:
     response = upload(client, "  Cat cat  DOG_dog ")
     assert response.status_code == 201
     tags = response.json()["tags"]
     assert tags == ["cat", "dog_dog"]  # first-seen order, case-folded, deduped
 
 
-def test_existing_tag_is_reused_not_duplicated(client):
+def test_existing_tag_is_reused_not_duplicated(client: TestClient) -> None:
     first = upload(client, "landscape").json()
     second = upload(client, "Landscape sunset").json()
     assert first["tags"] == ["landscape"]
@@ -151,7 +151,7 @@ def test_existing_tag_is_reused_not_duplicated(client):
 
 # --------------------------------------------------------- list & search ----
 
-def test_listing_newest_first_with_pagination(client):
+def test_listing_newest_first_with_pagination(client: TestClient) -> None:
     ids = [upload(client, f"tag{i}").json()["id"] for i in range(25)]
 
     page1 = client.get("/api/images").json()
@@ -167,53 +167,53 @@ def test_listing_newest_first_with_pagination(client):
     assert beyond["total"] == 25 and beyond["total_pages"] == 2  # valid metadata
 
 
-def test_invalid_page_rejected(client):
+def test_invalid_page_rejected(client: TestClient) -> None:
     assert client.get("/api/images?page=0").status_code == 422
 
 
-def test_search_single_tag(client):
-    upload(client, "cat dog")
+def test_search_single_tag(client: TestClient) -> None:
+    _ = upload(client, "cat dog")
     bird_id = upload(client, "cat bird").json()["id"]
     results = client.get("/api/images?tags=bird").json()
     assert results["total"] == 1
     assert results["items"][0]["id"] == bird_id
 
 
-def test_search_multi_tag_is_intersection(client):
+def test_search_multi_tag_is_intersection(client: TestClient) -> None:
     both = upload(client, "cat dog").json()["id"]
-    upload(client, "cat bird")
-    upload(client, "dog fish")
+    _ = upload(client, "cat bird")
+    _ = upload(client, "dog fish")
     results = client.get("/api/images?tags=cat dog").json()
     assert results["total"] == 1
     assert results["items"][0]["id"] == both
 
 
-def test_search_normalizes_input(client):
-    upload(client, "CAT dog")
+def test_search_normalizes_input(client: TestClient) -> None:
+    _ = upload(client, "CAT dog")
     results = client.get("/api/images?tags= Cat  DOG ").json()
     assert results["total"] == 1
 
 
-def test_search_no_matches_returns_empty_with_metadata(client):
-    upload(client, "cat")
+def test_search_no_matches_returns_empty_with_metadata(client: TestClient) -> None:
+    _ = upload(client, "cat")
     results = client.get("/api/images?tags=zebra").json()
     assert results["items"] == []
     assert results["total"] == 0 and results["total_pages"] == 0
     assert results["page"] == 1 and results["page_size"] == 20
 
 
-def test_search_nonexistent_tag_returns_empty_not_error(client):
+def test_search_nonexistent_tag_returns_empty_not_error(client: TestClient) -> None:
     results = client.get("/api/images?tags=never_seen").json()
     assert results["items"] == [] and results["total"] == 0
 
 
-def test_search_invalid_tag_syntax_rejected(client):
+def test_search_invalid_tag_syntax_rejected(client: TestClient) -> None:
     assert client.get("/api/images?tags=ok no!pe").status_code == 400
 
 
 # ---------------------------------------------------------------- detail ----
 
-def test_detail_returns_full_record(client):
+def test_detail_returns_full_record(client: TestClient) -> None:
     png = make_png(rgb=(1, 2, 3))
     created = upload(client, "alpha beta", filename="photo.jpeg",
                      data=png, content_type="image/jpeg").json()
@@ -226,7 +226,7 @@ def test_detail_returns_full_record(client):
     assert detail["created_at"]
 
 
-def test_detail_of_nonexistent_image(client):
+def test_detail_of_nonexistent_image(client: TestClient) -> None:
     response = client.get("/api/images/9999")
     assert response.status_code == 404
     assert "9999" in response.json()["detail"]
@@ -234,7 +234,7 @@ def test_detail_of_nonexistent_image(client):
 
 # ---------------------------------------------------------------- delete ----
 
-def test_delete_removes_record_and_file(client):
+def test_delete_removes_record_and_file(client: TestClient) -> None:
     created = upload(client, "temp").json()
     assert stored_file_count() == 1
 
@@ -246,16 +246,16 @@ def test_delete_removes_record_and_file(client):
     assert client.get("/api/images").json()["total"] == 0
 
 
-def test_delete_of_nonexistent_image(client):
+def test_delete_of_nonexistent_image(client: TestClient) -> None:
     assert client.delete("/api/images/4242").status_code == 404
 
 
-def test_delete_cleans_up_orphaned_tags(client):
-    upload(client, "keepme onlymine")
-    upload(client, "keepme")
+def test_delete_cleans_up_orphaned_tags(client: TestClient) -> None:
+    _ = upload(client, "keepme onlymine")
+    _ = upload(client, "keepme")
     image_to_delete = client.get("/api/images?tags=onlymine").json()["items"][0]
 
-    client.delete(f"/api/images/{image_to_delete['id']}")
+    _ = client.delete(f"/api/images/{image_to_delete['id']}")
 
     # 'onlymine' lost its only image and must disappear; 'keepme' survives.
     assert client.get("/api/tags").json()["tags"] == ["keepme"]
@@ -263,9 +263,9 @@ def test_delete_cleans_up_orphaned_tags(client):
 
 # ------------------------------------------------------------- tag list -----
 
-def test_tag_list_alphabetical_names_only(client):
-    upload(client, "zebra apple mango")
-    upload(client, "banana")
+def test_tag_list_alphabetical_names_only(client: TestClient) -> None:
+    _ = upload(client, "zebra apple mango")
+    _ = upload(client, "banana")
     body = client.get("/api/tags").json()
     assert body["tags"] == ["apple", "banana", "mango", "zebra"]
     # Names only: no counts anywhere in the response.
@@ -273,16 +273,16 @@ def test_tag_list_alphabetical_names_only(client):
     assert set(body.keys()) == {"tags"}
 
 
-def test_tag_list_excludes_unused_tags_after_delete(client):
-    upload(client, "solo")
+def test_tag_list_excludes_unused_tags_after_delete(client: TestClient) -> None:
+    _ = upload(client, "solo")
     image_id = client.get("/api/images").json()["items"][0]["id"]
-    client.delete(f"/api/images/{image_id}")
+    _ = client.delete(f"/api/images/{image_id}")
     assert client.get("/api/tags").json()["tags"] == []
 
 
 # ---------------------------------------------------------- file serving ----
 
-def test_file_serving_returns_bytes(client):
+def test_file_serving_returns_bytes(client: TestClient) -> None:
     png = make_png(rgb=(9, 9, 9))
     created = upload(client, "serve", data=png).json()
     response = client.get(created["url"])
@@ -291,7 +291,7 @@ def test_file_serving_returns_bytes(client):
     assert response.headers["content-type"].startswith("image/png")
 
 
-def test_file_serving_missing_file_is_404_without_crash(client):
+def test_file_serving_missing_file_is_404_without_crash(client: TestClient) -> None:
     created = upload(client, "gone").json()
     stored = TEST_UPLOAD_DIR / list(stored_files())[0]
     stored.unlink()  # simulate the file disappearing under the record
@@ -304,7 +304,7 @@ def test_file_serving_missing_file_is_404_without_crash(client):
     assert client.get("/api/images").status_code == 200
 
 
-def test_file_serving_rejects_traversal_names(client):
+def test_file_serving_rejects_traversal_names(client: TestClient) -> None:
     for bad in ("../../etc/passwd", "deadbeef.exe", "nice_name.png"):
         response = client.get(f"/api/files/{bad}")
         assert response.status_code == 404

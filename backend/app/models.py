@@ -27,12 +27,12 @@ class Base(DeclarativeBase):
 image_tags = Table(
     "image_tags",
     Base.metadata,
-    Column(
+    Column[int](
         "image_id",
         ForeignKey("images.id", ondelete="CASCADE"),
         primary_key=True,
     ),
-    Column(
+    Column[int](
         "tag_id",
         ForeignKey("tags.id", ondelete="CASCADE"),
         primary_key=True,
@@ -44,7 +44,7 @@ image_tags = Table(
 
 
 class Image(Base):
-    __tablename__ = "images"
+    __tablename__: str = "images"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     # Generated, non-guessable storage name (not the user's filename).
@@ -68,7 +68,7 @@ class Image(Base):
 
 
 class Tag(Base):
-    __tablename__ = "tags"
+    __tablename__: str = "tags"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     # Normalized, unique tag name (lowercase, underscores for spaces).

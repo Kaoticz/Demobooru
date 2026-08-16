@@ -18,6 +18,7 @@ images through the app.
 | Database | PostgreSQL 18 (Docker volume for persistence)   |
 | Frontend | React 19 + TypeScript, Vite dev server          |
 | Tests    | pytest (backend), Vitest + RTL (frontend)       |
+| Types    | mypy (strict) + basedpyright, backend code      |
 | Runtime  | Docker Compose, hot reloading on both app tiers |
 
 ## Tests
@@ -42,6 +43,15 @@ Type-check the frontend with:
 docker compose exec frontend npm run typecheck
 ```
 
+Static type checking for the backend (mypy in strict mode and basedpyright,
+both configured in `backend/pyproject.toml`, both run inside the backend
+container — no local Python tooling needed):
+
+```sh
+docker compose exec backend mypy
+docker compose exec backend basedpyright
+```
+
 No authentication anywhere — the board is fully anonymous by design.
 
 ## Prerequisites
@@ -57,7 +67,7 @@ needs neither.
 docker compose up -d --build
 ```
 
-- Frontend: http://localhost:5173
+- Frontend: http://localhost:5174
 - Backend API: http://localhost:8000/api/health
 - PostgreSQL: `localhost:5433` (user `demobooru`, password `demobooru_demo`, db `demobooru`)
 
@@ -69,10 +79,10 @@ migrations automatically, then begins serving. No manual setup steps.
 The conventional 5432 is very likely already used by another local PostgreSQL
 instance (for example the one another tool on this machine relies on), so this
 stack deliberately publishes on **5433** instead. To change any published port,
-copy `.env.example` to `.env` and adjust `DB_HOST_PORT`, `BACKEND_HOST_PORT`,
+copy `env.example` to `.env` and adjust `DB_HOST_PORT`, `BACKEND_HOST_PORT`,
 or `FRONTEND_HOST_PORT`.
 
-Every variable the stack reads is documented in [`.env.example`](.env.example)
+Every variable the stack reads is documented in [`env.example`](env.example)
 with demo-safe defaults; the stack runs fine with no `.env` at all.
 
 ## Hot reloading
@@ -145,10 +155,13 @@ them.
   actually in use.
 - **Rejected uploads** leave nothing behind: no file on disk, no database row.
 - **Pinned dependencies**: the backend's dependencies live in
-  `backend/pyproject.toml` as a complete, fully pinned transitive closure
-  (not just direct requirements) for reproducible builds. To upgrade, edit
-  the pins there and rebuild; regenerate the list with
-  `docker compose exec backend pip freeze`.
+  `backend/pyproject.toml`, split into runtime dependencies and a `dev`
+  profile (`[dependency-groups]`) carrying pytest, httpx2 and the type
+  checkers mypy and basedpyright. Both lists are complete, fully pinned
+  transitive closures (not just direct requirements) for reproducible
+  builds; the container installs both so tests and type checking run
+  inside it. To upgrade, edit the pins there and rebuild; regenerate the
+  lists with `docker compose exec backend pip freeze`.
 
 ## Repository layout
 
@@ -158,7 +171,7 @@ time:
 ```
 .
 ├── docker-compose.yml        three services: database, backend, frontend
-├── .env.example              every environment variable, with defaults
+├── env.example                every environment variable, with defaults
 ├── backend/                  Python / FastAPI
 │   ├── app/
 │   │   ├── main.py           app wiring: CORS, router, /api/health
@@ -172,7 +185,8 @@ time:
 │   │   └── database.py       engine, session factory, get_db dependency
 │   ├── alembic/              migrations (versions/ holds the revisions)
 │   ├── tests/                pytest suite (tests through the HTTP layer)
-│   ├── pyproject.toml        fully pinned dependencies (installed by the Dockerfile)
+│   ├── pyproject.toml        pinned deps (runtime + dev profile), mypy/
+│   │                         basedpyright config
 │   └── entrypoint.sh         wait for DB → apply migrations → run server
 ├── frontend/                 React 19 + TypeScript / Vite
 │   └── src/
@@ -224,7 +238,7 @@ Failures actually hit while building this project:
   `docker` group. Fix: `sudo usermod -aG docker $USER`, then log out and
   back in (or start a shell with `newgrp docker`).
 - **`port is already allocated` / address in use** — one of the published
-  ports (5433, 8000, 5173) is taken on the host. Copy `.env.example` to
+  ports (5433, 8000, 5174) is taken on the host. Copy `env.example` to
   `.env` and change `DB_HOST_PORT` / `BACKEND_HOST_PORT` /
   `FRONTEND_HOST_PORT`. Note PostgreSQL is on 5433 precisely to avoid the
   usual 5432 collision; if you change it, any host tooling must follow.

@@ -41,7 +41,7 @@ def generate_stored_filename(mime_type: str) -> str:
 def save_file(data: bytes, mime_type: str) -> str:
     """Write upload bytes to storage; returns the stored filename."""
     filename = generate_stored_filename(mime_type)
-    (upload_root() / filename).write_bytes(data)
+    _ = (upload_root() / filename).write_bytes(data)
     return filename
 
 

@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import ClassVar
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -9,9 +10,11 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://demobooru:demobooru_demo@localhost:5433/demobooru"
     upload_dir: str = "./uploads"
     max_upload_mb: int = 10
-    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    cors_origins: str = "http://localhost:5174,http://127.0.0.1:5174"
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
+        env_file=".env", extra="ignore"
+    )
 
     @property
     def cors_origin_list(self) -> list[str]:

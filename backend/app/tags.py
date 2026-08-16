@@ -43,8 +43,7 @@ def normalize_tags(raw: str | None) -> list[str]:
     for tag in ordered:
         if len(tag) > MAX_TAG_LENGTH or not TAG_PATTERN.fullmatch(tag):
             raise TagValidationError(
-                f"invalid tag '{tag}': tags may use lowercase letters, digits, "
-                f"underscores and hyphens, up to {MAX_TAG_LENGTH} characters"
+                f"invalid tag '{tag}': tags may use lowercase letters, digits, underscores and hyphens, up to {MAX_TAG_LENGTH} characters"
             )
     return ordered
 
@@ -64,7 +63,7 @@ def get_or_create_tag(db: Session, name: str) -> Tag:
     stmt = pg_insert(Tag).values(name=name).on_conflict_do_nothing(
         index_elements=["name"]
     )
-    db.execute(stmt)
+    _ = db.execute(stmt)
     tag = db.scalar(select(Tag).where(Tag.name == name))
     if tag is None:  # pragma: no cover - defensive; see docstring
         raise RuntimeError(f"tag '{name}' disappeared after insert")

@@ -26,7 +26,7 @@ def health() -> JSONResponse:
     """Report service liveness and database connectivity."""
     try:
         with engine.connect() as connection:
-            connection.execute(text("SELECT 1"))
+            _ = connection.execute(text("SELECT 1"))
     except Exception as exc:  # noqa: BLE001 - report any driver failure
         return JSONResponse(
             status_code=503,
