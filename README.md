@@ -29,6 +29,19 @@ Backend (pytest, runs inside the backend container against an isolated
 docker compose exec backend pytest
 ```
 
+Frontend (Vitest + React Testing Library, runs inside the frontend container;
+the API layer is mocked, no backend needed):
+
+```sh
+docker compose exec frontend npm test
+```
+
+Type-check the frontend with:
+
+```sh
+docker compose exec frontend npm run typecheck
+```
+
 No authentication anywhere — the board is fully anonymous by design.
 
 ## Prerequisites
