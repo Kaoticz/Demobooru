@@ -3,8 +3,8 @@ import { defineConfig } from 'vitest/config';
 
 // The dev server proxies /api to the backend so the browser never needs to
 // know the backend origin. Inside Docker Compose the target is the backend
-// service name; running Vite directly on the host, use localhost:8000.
-const apiTarget = process.env.API_TARGET ?? 'http://localhost:8000';
+// service name; running Vite directly on the host, use localhost:8001.
+const apiTarget = process.env.API_TARGET ?? 'http://localhost:8001';
 
 // Polling is slower than native filesystem events but works on every host
 // platform (including hosts whose inotify events do not reach the container).

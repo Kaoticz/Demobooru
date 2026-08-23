@@ -68,7 +68,7 @@ docker compose up -d --build
 ```
 
 - Frontend: http://localhost:5174
-- Backend API: http://localhost:8000/api/health
+- Backend API: http://localhost:8001/api/health
 - PostgreSQL: `localhost:5433` (user `demobooru`, password `demobooru_demo`, db `demobooru`)
 
 On first start the backend waits for PostgreSQL, applies all Alembic
@@ -238,7 +238,7 @@ Failures actually hit while building this project:
   `docker` group. Fix: `sudo usermod -aG docker $USER`, then log out and
   back in (or start a shell with `newgrp docker`).
 - **`port is already allocated` / address in use** — one of the published
-  ports (5433, 8000, 5174) is taken on the host. Copy `env.example` to
+  ports (5433, 8001, 5174) is taken on the host. Copy `env.example` to
   `.env` and change `DB_HOST_PORT` / `BACKEND_HOST_PORT` /
   `FRONTEND_HOST_PORT`. Note PostgreSQL is on 5433 precisely to avoid the
   usual 5432 collision; if you change it, any host tooling must follow.

@@ -30,7 +30,7 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5174,http://127.0.0.1:5174}
       WATCHFILES_FORCE_POLLING: ${WATCHFILES_FORCE_POLLING:-true}
     ports:
-      - "${BACKEND_HOST_PORT:-8000}:8000"
+      - "${BACKEND_HOST_PORT:-8001}:8001"
     volumes:
       - ./backend:/app
       - uploads:/app/uploads
@@ -42,7 +42,7 @@ services:
   frontend:
     build: ./frontend
     environment:
-      API_TARGET: ${API_TARGET:-http://backend:8000}
+      API_TARGET: ${API_TARGET:-http://backend:8001}
       VITE_USE_POLLING: ${VITE_USE_POLLING:-true}
     ports:
       - "${FRONTEND_HOST_PORT:-5174}:5174"

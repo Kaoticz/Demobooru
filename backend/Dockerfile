@@ -19,9 +19,9 @@ RUN python -c 'import tomllib; data = tomllib.load(open("pyproject.toml", "rb"))
 
 COPY . .
 
-EXPOSE 8000
+EXPOSE 8001
 
 # Invoked through `sh` so the container never depends on the file's exec bit,
 # which bind mounts (and some host platforms) may not preserve.
 ENTRYPOINT ["sh", "/app/entrypoint.sh"]
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/app"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001", "--reload", "--reload-dir", "/app/app"]
