@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import type { BoardImage } from '../api/types';
 import { fetchImages } from '../api/client';
@@ -29,6 +30,7 @@ export default function GridView({
   gridSize,
   onGridSizeChange,
 }: GridViewProps) {
+  const navigate = useNavigate();
   const [items, setItems] = useState<BoardImage[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
@@ -36,6 +38,11 @@ export default function GridView({
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fetchingRef = useRef(false);
+
+  // Keyboard navigation state
+  const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
+  const gridRef = useRef<HTMLUListElement | null>(null);
+  const itemRefs = useRef<Map<number, HTMLLIElement>>(new Map());
 
   const queryKey = query.join(' ');
 
@@ -105,6 +112,103 @@ export default function GridView({
     return () => observer.disconnect();
   }, [queryKey, reloadKey]);
 
+  // --- Keyboard navigation ---
+
+  const getColumns = useCallback(() => {
+    const grid = gridRef.current;
+    if (!grid) return 1;
+    const minSizeStr = getComputedStyle(grid).getPropertyValue('--grid-min-size').trim();
+    const minSize = parseFloat(minSizeStr) || 220;
+    return Math.max(1, Math.floor(grid.clientWidth / minSize));
+  }, []);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (items.length === 0) return;
+
+      const key = e.key;
+      if (
+        !['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp', 'Enter', 'Escape', 'PageDown', 'Home', 'End'].includes(key)
+      ) {
+        return;
+      }
+
+      e.preventDefault();
+      const cols = getColumns();
+
+      switch (key) {
+        case 'ArrowRight':
+          setFocusedIndex((prev) => (prev === null ? 0 : Math.min(prev + 1, items.length - 1)));
+          break;
+        case 'ArrowLeft':
+          setFocusedIndex((prev) => (prev === null ? 0 : Math.max(prev - 1, 0)));
+          break;
+        case 'ArrowDown':
+          setFocusedIndex((prev) => {
+            const next = prev === null ? 0 : prev + cols;
+            return Math.min(next, items.length - 1);
+          });
+          break;
+        case 'ArrowUp':
+          setFocusedIndex((prev) => {
+            const next = prev === null ? 0 : prev - cols;
+            return Math.max(next, 0);
+          });
+          break;
+        case 'Home':
+          setFocusedIndex(0);
+          break;
+        case 'End':
+          setFocusedIndex(items.length - 1);
+          break;
+        case 'Enter':
+          setFocusedIndex((prev) => {
+            if (prev !== null && prev < items.length) {
+              navigate(`/images/${items[prev].id}`);
+            }
+            return prev;
+          });
+          break;
+        case 'Escape':
+          setFocusedIndex((prev) => {
+            if (prev !== null) {
+              const image = items[prev];
+              const li = itemRefs.current.get(image.id);
+              li?.blur();
+            }
+            return null;
+          });
+          break;
+        case 'PageDown':
+          if (page >= totalPages) {
+            // Already at the end — move to last item.
+            setFocusedIndex(items.length - 1);
+          }
+          // If more pages exist, loadMore will be triggered by scroll;
+          // also allow explicit PageDown to trigger it.
+          loadMoreRef.current?.();
+          break;
+      }
+    },
+    [items, getColumns, navigate, page, totalPages],
+  );
+
+  // Focus the <li> when focusedIndex changes.
+  useEffect(() => {
+    if (focusedIndex === null || focusedIndex >= items.length) return;
+    const image = items[focusedIndex];
+    const li = itemRefs.current.get(image.id);
+    if (li) {
+      li.scrollIntoView({ block: 'nearest' });
+      li.focus();
+    }
+  }, [focusedIndex, items]);
+
+  // Reset focus when the query changes.
+  useEffect(() => {
+    setFocusedIndex(null);
+  }, [queryKey]);
+
   if (error && items.length === 0) {
     return <ErrorState message={error} onRetry={() => resetAndFetch(query, 1)} />;
   }
@@ -141,9 +245,23 @@ export default function GridView({
           <div className="grid-controls">
             <SizeSelector value={gridSize} onChange={onGridSizeChange} />
           </div>
-          <ul className="grid" style={{ '--grid-min-size': GRID_MIN_SIZES[gridSize] } as React.CSSProperties}>
-            {items.map((image) => (
-              <li key={image.id}>
+          <ul
+            ref={gridRef}
+            className="grid"
+            style={{ '--grid-min-size': GRID_MIN_SIZES[gridSize] } as React.CSSProperties}
+            onKeyDown={handleKeyDown}
+          >
+            {items.map((image, index) => (
+              <li
+                key={image.id}
+                ref={(el) => {
+                  if (el) itemRefs.current.set(image.id, el);
+                  else itemRefs.current.delete(image.id);
+                }}
+                tabIndex={focusedIndex === index ? 0 : -1}
+                className={focusedIndex === index ? 'grid-item--focused' : undefined}
+                onFocus={() => setFocusedIndex(index)}
+              >
                 <ImageCard image={image} />
               </li>
             ))}

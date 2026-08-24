@@ -24,3 +24,8 @@ if (typeof globalThis.IntersectionObserver === 'undefined') {
   }
   globalThis.IntersectionObserver = MockIntersectionObserver;
 }
+
+// jsdom does not implement scrollIntoView — stub it so focus effects don't crash.
+if (typeof Element.prototype.scrollIntoView === 'undefined') {
+  Element.prototype.scrollIntoView = () => {};
+}

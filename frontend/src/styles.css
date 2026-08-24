@@ -285,6 +285,16 @@ input[type='file'] {
   border-color: var(--accent);
 }
 
+.grid-item--focused {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+.grid-item--focused .card {
+  border-color: var(--accent-strong);
+}
+
 .card__img {
   display: block;
   width: 100%;
