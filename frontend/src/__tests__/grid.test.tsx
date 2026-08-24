@@ -55,7 +55,7 @@ describe('grid view', () => {
 
     expect(await screen.findByText('The board is empty')).toBeInTheDocument();
     expect(screen.getByText(/upload the first image/i)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: '← Previous' })).not.toBeInTheDocument();
+    expect(screen.queryByText('End of results')).not.toBeInTheDocument();
   });
 
   it('shows an error state with retry when the API is unreachable', async () => {
@@ -69,27 +69,20 @@ describe('grid view', () => {
     expect(await screen.findByRole('img')).toBeInTheDocument();
   });
 
-  it('paginates with disabled controls at both boundaries', async () => {
-    const items = (page: number) =>
-      Array.from({ length: 3 }, (_, i) => makeImage({ id: page * 100 + i }));
-    mockedFetchImages.mockImplementation(({ page }) =>
-      Promise.resolve(makePage(items(page), { page, total: 45, totalPages: 3 })),
+  it('loads the first page and shows end-of-results for a single page', async () => {
+    mockedFetchImages.mockResolvedValue(
+      makePage(
+        [makeImage({ id: 1 }), makeImage({ id: 2 })],
+        { page: 1, total: 2, totalPages: 1 },
+      ),
     );
 
     renderBoard();
 
-    const previous = await screen.findByRole('button', { name: '← Previous' });
-    expect(previous).toBeDisabled();
-    expect(screen.getByText('Page 1 of 3')).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'Next →' }));
-    expect(await screen.findByText('Page 2 of 3')).toBeInTheDocument();
-    expect(mockedFetchImages).toHaveBeenLastCalledWith({ page: 2, tags: undefined });
-
-    await user.click(screen.getByRole('button', { name: 'Next →' }));
-    expect(await screen.findByText('Page 3 of 3')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Next →' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: '← Previous' })).toBeEnabled();
+    await screen.findByRole('img', { name: 'image1.png' });
+    expect(screen.getByRole('img', { name: 'image2.png' })).toBeInTheDocument();
+    expect(mockedFetchImages).toHaveBeenCalledTimes(1);
+    expect(mockedFetchImages).toHaveBeenCalledWith({ page: 1, tags: undefined });
   });
 
   it('clicking a tag in the tag panel searches for it', async () => {

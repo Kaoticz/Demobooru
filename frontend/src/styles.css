@@ -319,6 +319,40 @@ input[type='file'] {
   text-align: center;
 }
 
+/* ---- infinite scroll -------------------------------------------------- */
+
+.grid-end {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.9rem;
+  padding: 1.5rem 0 0.5rem;
+}
+
+.grid-error {
+  text-align: center;
+  color: var(--danger);
+  font-size: 0.9rem;
+  padding: 1rem 0 0.5rem;
+}
+
+.grid-error button {
+  color: var(--accent);
+  background: none;
+  border: none;
+  padding: 0;
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+
+.grid-error button:hover:not(:disabled) {
+  color: var(--accent-strong);
+}
+
+.grid-sentinel {
+  height: 1px;
+}
+
 /* ---- tag panel & chips ------------------------------------------------ */
 
 .tag-panel__title {

@@ -1,9 +1,8 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
+import type { BoardImage } from '../api/types';
 import { fetchImages } from '../api/client';
-import { useApi } from '../hooks/useApi';
 import ImageCard from './ImageCard';
-import Pagination from './Pagination';
 import SizeSelector from './SizeSelector';
 import type { GridSize } from './SizeSelector';
 import { ErrorState, LoadingState } from './States';
@@ -17,8 +16,6 @@ const GRID_MIN_SIZES: Record<GridSize, string> = {
 
 interface GridViewProps {
   query: string[];
-  page: number;
-  setPage: (page: number) => void;
   reloadKey: number;
   onUploaded: () => void;
   gridSize: GridSize;
@@ -27,35 +24,97 @@ interface GridViewProps {
 
 export default function GridView({
   query,
-  page,
-  setPage,
   reloadKey,
   onUploaded,
   gridSize,
   onGridSizeChange,
 }: GridViewProps) {
-  const { data, loading, error, reload } = useApi(
-    () => fetchImages({ page, tags: query.length > 0 ? query : undefined }),
-    [page, query.join(' '), reloadKey],
-  );
+  const [items, setItems] = useState<BoardImage[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fetchingRef = useRef(false);
 
-  // Never strand the user on a page that no longer exists (e.g. they deleted
-  // the last image of the final page): step back to the last real page.
-  useEffect(() => {
-    if (data && data.total_pages > 0 && page > data.total_pages) {
-      setPage(data.total_pages);
+  const queryKey = query.join(' ');
+
+  // Reset and fetch page 1 when query or reloadKey changes.
+  const resetAndFetch = useCallback(async (tags: string[], fetchPage: number) => {
+    fetchingRef.current = true;
+    setInitialLoading(true);
+    setError(null);
+    try {
+      const result = await fetchImages({
+        page: fetchPage,
+        tags: tags.length > 0 ? tags : undefined,
+      });
+      setItems(result.items);
+      setTotalPages(result.total_pages);
+      setPage(1);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setInitialLoading(false);
+      fetchingRef.current = false;
     }
-  }, [data, page, setPage]);
+  }, []);
 
-  if (error) {
-    return <ErrorState message={error} onRetry={reload} />;
+  useEffect(() => {
+    resetAndFetch(query, 1);
+  }, [queryKey, reloadKey, resetAndFetch]);
+
+  // Load the next page and append items.
+  const loadMore = useCallback(async () => {
+    if (fetchingRef.current || page >= totalPages) return;
+    fetchingRef.current = true;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const result = await fetchImages({
+        page: nextPage,
+        tags: query.length > 0 ? query : undefined,
+      });
+      setItems((prev) => [...prev, ...result.items]);
+      setPage(nextPage);
+      setTotalPages(result.total_pages);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoadingMore(false);
+      fetchingRef.current = false;
+    }
+  }, [query, page, totalPages]);
+
+  // IntersectionObserver: call loadMore when the sentinel is visible.
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const loadMoreRef = useRef(loadMore);
+  loadMoreRef.current = loadMore;
+
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node) return;
+
+    const observer = new IntersectionObserver(
+      () => {
+        if (loadMoreRef.current) loadMoreRef.current();
+      },
+      { rootMargin: '200px' },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [queryKey, reloadKey]);
+
+  if (error && items.length === 0) {
+    return <ErrorState message={error} onRetry={() => resetAndFetch(query, 1)} />;
   }
-  if (!data) {
+  if (initialLoading) {
     return <LoadingState />;
   }
 
-  const isBoardEmpty = data.total === 0;
+  const isBoardEmpty = items.length === 0;
   const isSearch = query.length > 0;
+  const hasMore = page < totalPages;
 
   return (
     <section className="grid-view">
@@ -83,14 +142,22 @@ export default function GridView({
             <SizeSelector value={gridSize} onChange={onGridSizeChange} />
           </div>
           <ul className="grid" style={{ '--grid-min-size': GRID_MIN_SIZES[gridSize] } as React.CSSProperties}>
-            {data.items.map((image) => (
+            {items.map((image) => (
               <li key={image.id}>
                 <ImageCard image={image} />
               </li>
             ))}
           </ul>
-          <Pagination page={data.page} totalPages={data.total_pages} onPage={setPage} />
-          {loading && <p className="state state--loading">Refreshing…</p>}
+          {loadingMore && <p className="state state--loading">Loading more…</p>}
+          {!hasMore && items.length > 0 && (
+            <p className="grid-end">End of results</p>
+          )}
+          {error && items.length > 0 && (
+            <p className="grid-error">
+              Failed to load more — <button type="button" onClick={() => loadMore()}>retry</button>
+            </p>
+          )}
+          <div ref={sentinelRef} className="grid-sentinel" />
         </>
       )}
     </section>

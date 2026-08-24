@@ -75,7 +75,7 @@ describe('search', () => {
     await screen.findByText('The board is empty'); // back to unfiltered view
   });
 
-  it('searching from a later page resets to the first page of results', async () => {
+  it('searching resets accumulated items and loads page 1 of new results', async () => {
     const items = (page: number) =>
       Array.from({ length: 3 }, (_, i) => makeImage({ id: page * 100 + i }));
     mockedFetchImages.mockImplementation(({ page }) =>
@@ -83,14 +83,23 @@ describe('search', () => {
     );
     renderBoard();
 
-    await user.click(await screen.findByRole('button', { name: 'Next →' }));
-    expect(await screen.findByText('Page 2 of 3')).toBeInTheDocument();
+    // First page loaded.
+    await screen.findByRole('img', { name: 'image100.png' });
 
+    // Search for "cat" — should reset to page 1 of filtered results.
+    mockedFetchImages.mockImplementation(({ page }) =>
+      Promise.resolve(
+        makePage([makeImage({ id: 999, tags: ['cat'] })], { page, total: 1, totalPages: 1 }),
+      ),
+    );
     await user.type(screen.getByLabelText('Search tags'), 'cat');
     await user.click(screen.getByRole('button', { name: /^Search$/ }));
 
     await waitFor(() =>
       expect(mockedFetchImages).toHaveBeenLastCalledWith({ page: 1, tags: ['cat'] }),
     );
+    expect(await screen.findByRole('img', { name: 'image999.png' })).toBeInTheDocument();
+    // Original items should be gone.
+    expect(screen.queryByRole('img', { name: 'image100.png' })).not.toBeInTheDocument();
   });
 });

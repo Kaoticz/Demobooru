@@ -23,7 +23,6 @@ function readGridSize(): GridSize {
  *  App wraps this in a BrowserRouter; tests wrap it in a MemoryRouter. */
 export function BoardApp() {
   const [query, setQuery] = useState<string[]>([]);
-  const [page, setPage] = useState(1);
   const [reloadKey, setReloadKey] = useState(0);
   const [gridSize, setGridSizeState] = useState<GridSize>(readGridSize);
 
@@ -38,7 +37,6 @@ export function BoardApp() {
 
   const runSearch = useCallback((tags: string[]) => {
     setQuery(tags);
-    setPage(1);
   }, []);
 
   const refresh = useCallback(() => setReloadKey((key) => key + 1), []);
@@ -75,8 +73,6 @@ export function BoardApp() {
             element={
               <GridView
                 query={query}
-                page={page}
-                setPage={setPage}
                 reloadKey={reloadKey}
                 onUploaded={handleUploaded}
                 gridSize={gridSize}
