@@ -4,7 +4,20 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import DetailView from './components/DetailView';
 import GridView from './components/GridView';
 import SearchBar from './components/SearchBar';
+import type { GridSize } from './components/SizeSelector';
 import TagPanel from './components/TagPanel';
+
+const STORAGE_KEY = 'demobooru-grid-size';
+
+function readGridSize(): GridSize {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === 'small' || stored === 'medium' || stored === 'large') return stored;
+  } catch {
+    // localStorage unavailable — fall through to default
+  }
+  return 'medium';
+}
 
 /** The board itself: layout, search/page state, and routes.
  *  App wraps this in a BrowserRouter; tests wrap it in a MemoryRouter. */
@@ -12,6 +25,16 @@ export function BoardApp() {
   const [query, setQuery] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [reloadKey, setReloadKey] = useState(0);
+  const [gridSize, setGridSizeState] = useState<GridSize>(readGridSize);
+
+  const setGridSize = useCallback((size: GridSize) => {
+    setGridSizeState(size);
+    try {
+      localStorage.setItem(STORAGE_KEY, size);
+    } catch {
+      // silently ignore — preference just won't persist
+    }
+  }, []);
 
   const runSearch = useCallback((tags: string[]) => {
     setQuery(tags);
@@ -56,6 +79,8 @@ export function BoardApp() {
                 setPage={setPage}
                 reloadKey={reloadKey}
                 onUploaded={handleUploaded}
+                gridSize={gridSize}
+                onGridSizeChange={setGridSize}
               />
             }
           />

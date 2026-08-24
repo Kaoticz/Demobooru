@@ -223,12 +223,52 @@ input[type='file'] {
 
 /* ---- grid ------------------------------------------------------------- */
 
+.grid-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-bottom: 0.75rem;
+}
+
+.size-selector {
+  display: inline-flex;
+  gap: 0;
+}
+
+.size-selector__btn {
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 0;
+  border-right-width: 0;
+}
+
+.size-selector__btn:first-child {
+  border-radius: 6px 0 0 6px;
+}
+
+.size-selector__btn:last-child {
+  border-radius: 0 6px 6px 0;
+  border-right-width: 1px;
+}
+
+.size-selector__btn--active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #10131a;
+}
+
+.size-selector__btn--active:hover {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+}
+
 .grid {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(var(--grid-min-size, 220px), 1fr));
   gap: 0.9rem;
 }
 

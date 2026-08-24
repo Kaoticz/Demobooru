@@ -4,8 +4,16 @@ import { fetchImages } from '../api/client';
 import { useApi } from '../hooks/useApi';
 import ImageCard from './ImageCard';
 import Pagination from './Pagination';
+import SizeSelector from './SizeSelector';
+import type { GridSize } from './SizeSelector';
 import { ErrorState, LoadingState } from './States';
 import UploadForm from './UploadForm';
+
+const GRID_MIN_SIZES: Record<GridSize, string> = {
+  small: '150px',
+  medium: '220px',
+  large: '350px',
+};
 
 interface GridViewProps {
   query: string[];
@@ -13,6 +21,8 @@ interface GridViewProps {
   setPage: (page: number) => void;
   reloadKey: number;
   onUploaded: () => void;
+  gridSize: GridSize;
+  onGridSizeChange: (size: GridSize) => void;
 }
 
 export default function GridView({
@@ -21,6 +31,8 @@ export default function GridView({
   setPage,
   reloadKey,
   onUploaded,
+  gridSize,
+  onGridSizeChange,
 }: GridViewProps) {
   const { data, loading, error, reload } = useApi(
     () => fetchImages({ page, tags: query.length > 0 ? query : undefined }),
@@ -67,7 +79,10 @@ export default function GridView({
 
       {!isBoardEmpty && (
         <>
-          <ul className="grid">
+          <div className="grid-controls">
+            <SizeSelector value={gridSize} onChange={onGridSizeChange} />
+          </div>
+          <ul className="grid" style={{ '--grid-min-size': GRID_MIN_SIZES[gridSize] } as React.CSSProperties}>
             {data.items.map((image) => (
               <li key={image.id}>
                 <ImageCard image={image} />
